@@ -1,0 +1,7 @@
+<resources>
+    <!-- Base application theme -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    </style>
+    <string name="app_name">AppLearn(java)</string>
+    <string name="passwordHint">请输入密码</string>
+</resources>
