@@ -20,7 +20,7 @@
     <EditText
             android:id="@+id/etDescription"
             android:layout_width="1784dp"
-            android:layout_height="26dp"
+            android:layout_height="wrap_content"
             android:autofillHints=""
             android:hint="@string/info"
             android:inputType="text"
