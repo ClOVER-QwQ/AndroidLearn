@@ -1,0 +1,10 @@
+<resources>
+    <!-- Base application theme -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+    </style>
+    <string name="app_name">AppLearn(java)</string>
+    <string name="passwordHint">请输入密码</string>
+    <string name="AddContact">添加一个朋友</string>
+    <string name="info">简介</string>
+    <string name="name">姓名</string>
+</resources>
