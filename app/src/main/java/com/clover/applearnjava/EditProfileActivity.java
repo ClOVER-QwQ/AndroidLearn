@@ -1,6 +1,7 @@
 package com.clover.applearnjava;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -10,6 +11,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -53,7 +55,14 @@ public class EditProfileActivity extends AppCompatActivity {
 
         btnChangeAvatar.setOnClickListener(v -> checkPermissionAndPickImage());
 
-        saveButton.setOnClickListener(v -> saveUserData(usernameInput, phoneInput, emailInput));
+        saveButton.setOnClickListener(v -> {
+            // 确保有头像更新时保存路径
+            if (currentAvatarPath != null) {
+                saveUserData(usernameInput, phoneInput, emailInput);
+            } else {
+                Toast.makeText(this, "请先选择头像", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void loadUserData(EditText username, EditText phone, EditText email) {
@@ -72,11 +81,19 @@ public class EditProfileActivity extends AppCompatActivity {
                      null, null, null)) {
 
             if (cursor.moveToFirst()) {
+                // 添加空值检查
+                String avatarUri = cursor.getString(3);
+                if (!cursor.isNull(3)) {
+                    currentAvatarPath = avatarUri; // 保持当前路径同步
+                }
+
                 username.setText(cursor.getString(0));
                 phone.setText(cursor.getString(1));
                 email.setText(cursor.getString(2));
-                loadAvatarImage(cursor.getString(3));
+                loadAvatarImage(avatarUri);
             }
+        } catch (Exception e) {
+            Log.e("DB_ERROR", "数据库查询失败", e);
         }
     }
 
@@ -155,6 +172,7 @@ public class EditProfileActivity extends AppCompatActivity {
                 .show();
     }
 
+    @SuppressLint("QueryPermissionsNeeded")
     private void openImagePicker() {
         Intent intent = new Intent(Intent.ACTION_PICK);
         intent.setType("image/*");
@@ -169,11 +187,14 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private void updateAvatar(Uri imageUri) {
-        currentAvatarPath = imageUri.toString();
-        Glide.with(this)
-                .load(imageUri)
-                .circleCrop()
-                .into(avatarImage);
+        if (imageUri != null) {
+            currentAvatarPath = imageUri.toString();
+            Glide.with(this)
+                    .load(imageUri)
+                    .placeholder(R.drawable.default_avatar) // 添加默认图
+                    .circleCrop()
+                    .into(avatarImage);
+        }
     }
 
     private void saveUserData(EditText username, EditText phone, EditText email) {
@@ -181,16 +202,33 @@ public class EditProfileActivity extends AppCompatActivity {
         values.put(DatabaseHelper.COLUMN_USERNAME, username.getText().toString().trim());
         values.put(DatabaseHelper.COLUMN_PHONE, phone.getText().toString().trim());
         values.put(DatabaseHelper.COLUMN_EMAIL, email.getText().toString().trim());
-        values.put(DatabaseHelper.COLUMN_AVATAR, currentAvatarPath);
+
+        // 确保头像路径保存（新增空值检查）
+        if (currentAvatarPath != null && !currentAvatarPath.isEmpty()) {
+            values.put(DatabaseHelper.COLUMN_AVATAR, currentAvatarPath);
+        } else {
+            Toast.makeText(this, "头像路径无效", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         DatabaseHelper dbHelper = new DatabaseHelper(this);
         try (SQLiteDatabase db = dbHelper.getWritableDatabase()) {
-            db.update(
+            int rowsAffected = db.update(
                     DatabaseHelper.TABLE_USERS,
                     values,
                     DatabaseHelper.COLUMN_USER_ID + " = ?",
                     new String[]{String.valueOf(userId)}
             );
+
+            if (rowsAffected > 0) {
+                Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show();
+                setResult(RESULT_OK); // 通知父界面刷新
+            } else {
+                Toast.makeText(this, "保存失败", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e("DB_ERROR", "数据库更新失败", e);
+            Toast.makeText(this, "保存时发生错误", Toast.LENGTH_SHORT).show();
         }
 
         Intent resultIntent = new Intent();
@@ -198,5 +236,18 @@ public class EditProfileActivity extends AppCompatActivity {
         resultIntent.putExtra("updatedAvatar", currentAvatarPath);
         setResult(RESULT_OK, resultIntent);
         finish();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 当返回界面时重新加载数据
+        if (userId != -1) {
+            loadUserData(
+                    findViewById(R.id.usernameInput),
+                    findViewById(R.id.phoneInput),
+                    findViewById(R.id.emailInput)
+            );
+        }
     }
 }
