@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ProfileActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> editProfileResultLauncher;
 
+    @SuppressLint("SetTextI18n")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
