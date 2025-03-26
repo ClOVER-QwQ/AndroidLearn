@@ -1,97 +1,145 @@
 package com.clover.applearnjava;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import com.bumptech.glide.Glide;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ProfileActivity extends AppCompatActivity {
-    private static final String PREFS_FILE = "login_prefs";
-    private static final String KEY_IS_LOGGED_IN = "is_logged_in";
+    private ActivityResultLauncher<Intent> editProfileResultLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
 
-        TextView usernameTextView = findViewById(R.id.usernameTextView);
-        TextView phoneTextView = findViewById(R.id.phoneTextView);
-        TextView emailTextView = findViewById(R.id.emailTextView);
-        Button logoutButton = findViewById(R.id.logoutButton);
-        Button editButton = findViewById(R.id.editButton);
-        Button accountingButton = findViewById(R.id.accountingButton); // 新增按钮
+        AtomicInteger userId = new AtomicInteger(getIntent().getIntExtra("user_id", -1));
 
-        // 从SharedPreferences中读取用户信息
-        SharedPreferences prefs = getSharedPreferences(PREFS_FILE, MODE_PRIVATE);
-        String username = prefs.getString("username", "未知用户");
-        String phone = prefs.getString("phone", "未设置");
-        String email = prefs.getString("email", "未设置");
+        DatabaseHelper dbHelper = new DatabaseHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.query(DatabaseHelper.TABLE_USERS,
+                new String[]{DatabaseHelper.COLUMN_USERNAME, DatabaseHelper.COLUMN_PHONE, DatabaseHelper.COLUMN_EMAIL},
+                DatabaseHelper.COLUMN_USER_ID + " = ?",
+                new String[]{String.valueOf(userId.get())},
+                null, null, null);
 
-        usernameTextView.setText("用户名: " + username);
-        phoneTextView.setText("手机号: " + phone);
-        emailTextView.setText("邮箱: " + email);
+        if (cursor.getCount() > 0) {
+            cursor.moveToFirst();
+            @SuppressLint("Range") String username = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_USERNAME));
+            @SuppressLint("Range") String phone = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_PHONE));
+            @SuppressLint("Range") String email = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_EMAIL));
+            ImageView ImageView = findViewById(R.id.avatarImage);
+            ((TextView) findViewById(R.id.usernameTextView)).setText("用户名: " + username);
+            ((TextView) findViewById(R.id.phoneTextView)).setText("手机号: " + phone);
+            ((TextView) findViewById(R.id.emailTextView)).setText("邮箱: " + email);
+        } else {
+            ((TextView) findViewById(R.id.usernameTextView)).setText("用户名: 未知用户");
+            ((TextView) findViewById(R.id.phoneTextView)).setText("手机号: 未知号码");
+            ((TextView) findViewById(R.id.emailTextView)).setText("邮箱: 未知邮箱");
+        }
 
-        editButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(ProfileActivity.this, EditProfileActivity.class);
-                intent.putExtra("username", username);
-                intent.putExtra("phone", phone);
-                intent.putExtra("email", email);
-                startActivityForResult(intent, 1);
-            }
+        cursor.close();
+        db.close();
+
+        // 注册编辑资料结果观察者
+        editProfileResultLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK) {
+                        // 从数据库重新加载完整数据
+                        reloadUserData(userId.get());
+                    }
+                }
+        );
+
+        findViewById(R.id.editButton).setOnClickListener(v -> {
+            Intent intent = new Intent(ProfileActivity.this, EditProfileActivity.class);
+            intent.putExtra("user_id", userId.get());
+            editProfileResultLauncher.launch(intent);
         });
 
-        logoutButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // 更新登录状态为未登录
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putBoolean(KEY_IS_LOGGED_IN, false);
-                editor.apply();
+        findViewById(R.id.logoutButton).setOnClickListener(v -> {
+            getSharedPreferences("login_prefs", MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("is_logged_in", false)
+                    .putInt("user_id", -1)
+                    .apply();
 
-                // 跳转到登录页面
-                Intent intent = new Intent(ProfileActivity.this, MainActivity.class);
-                startActivity(intent);
-                finish();
-            }
+            Intent intent = new Intent(ProfileActivity.this, MainActivity.class);
+            startActivity(intent);
+            finish();
         });
 
-        accountingButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(ProfileActivity.this, AccountingActivity.class);
-                startActivity(intent);
-            }
+        findViewById(R.id.accountingButton).setOnClickListener(v -> {
+            Intent intent = new Intent(ProfileActivity.this, AccountingActivity.class);
+            intent.putExtra("user_id", userId.get());
+            startActivity(intent);
         });
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1 && resultCode == RESULT_OK) {
-            String updatedUsername = data.getStringExtra("updatedUsername");
-            String updatedPhone = data.getStringExtra("updatedPhone");
-            String updatedEmail = data.getStringExtra("updatedEmail");
+    // 新增方法：重新加载用户数据
+    private void reloadUserData(int userId) {
+        DatabaseHelper dbHelper = new DatabaseHelper(this);
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.query(
+                DatabaseHelper.TABLE_USERS,
+                new String[]{
+                        DatabaseHelper.COLUMN_USERNAME,
+                        DatabaseHelper.COLUMN_PHONE,
+                        DatabaseHelper.COLUMN_EMAIL,
+                        DatabaseHelper.COLUMN_AVATAR
+                },
+                DatabaseHelper.COLUMN_USER_ID + " = ?",
+                new String[]{String.valueOf(userId)},
+                null, null, null
+        );
 
-            TextView usernameTextView = findViewById(R.id.usernameTextView);
-            TextView phoneTextView = findViewById(R.id.phoneTextView);
-            TextView emailTextView = findViewById(R.id.emailTextView);
+        if (cursor.moveToFirst()) {
+            @SuppressLint("Range") String username = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_USERNAME));
+            @SuppressLint("Range") String phone = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_PHONE));
+            @SuppressLint("Range") String email = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_EMAIL));
+            @SuppressLint("Range") String avatarPath = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUMN_AVATAR));
 
-            usernameTextView.setText("用户名: " + updatedUsername);
-            phoneTextView.setText("手机号: " + updatedPhone);
-            emailTextView.setText("邮箱: " + updatedEmail);
-
-            // 更新SharedPreferences中的数据
-            SharedPreferences prefs = getSharedPreferences(PREFS_FILE, MODE_PRIVATE);
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putString("username", updatedUsername);
-            editor.putString("phone", updatedPhone);
-            editor.putString("email", updatedEmail);
-            editor.apply();
+            // 更新所有UI组件
+            updateProfileViews(username, phone, email);
+            loadAvatar(avatarPath);
         }
+        cursor.close();
+        db.close();
+    }
+
+    // 更新头像加载方法
+    private void loadAvatar(String path) {
+        if (path != null && !path.isEmpty()) {
+            ImageView avatarImage = findViewById(R.id.avatarImage);
+            Glide.with(this)
+                    .load(Uri.parse(path))
+                    .placeholder(R.drawable.default_avatar)
+                    .error(R.drawable.default_avatar)
+                    .circleCrop()
+                    .into(avatarImage);
+        }
+    }
+
+    // 新增方法：统一处理界面更新
+    private void updateProfileViews(String username, String phone, String email) {
+        TextView usernameView = findViewById(R.id.usernameTextView);
+        TextView phoneView = findViewById(R.id.phoneTextView);
+        TextView emailView = findViewById(R.id.emailTextView);
+
+        usernameView.setText("用户名: " + (username != null ? username : ""));
+        phoneView.setText("手机号: " + (phone != null ? phone : ""));
+        emailView.setText("邮箱: " + (email != null ? email : ""));
     }
 }

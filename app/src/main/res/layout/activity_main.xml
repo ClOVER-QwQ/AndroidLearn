@@ -100,17 +100,32 @@
                     />
         </LinearLayout>
 
-        <!-- 登录按钮 -->
-        <Button
-                android:id="@+id/loginButton"
-                android:layout_width="wrap_content"
+        <!-- 登录和注册 -->
+        <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="登录"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="20dp"
-                android:padding="8dp"
-                android:textSize="16sp"
-                />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="20dp">
+
+            <Button
+                    android:id="@+id/loginButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="登录"
+                    android:padding="8dp"
+                    android:textSize="16sp"/>
+
+            <Button
+                    android:id="@+id/registerButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="注册"
+                    android:padding="8dp"
+                    android:textSize="16sp"/>
+        </LinearLayout>
 
         <LinearLayout
                 android:layout_width="match_parent"

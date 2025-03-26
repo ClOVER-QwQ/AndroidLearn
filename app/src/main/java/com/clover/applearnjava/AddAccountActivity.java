@@ -17,18 +17,15 @@ public class AddAccountActivity extends AppCompatActivity {
         EditText amountInput = findViewById(R.id.amountInput);
         Button saveButton = findViewById(R.id.saveButton);
 
-        saveButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String category = categoryInput.getText().toString().trim();
-                double amount = Double.parseDouble(amountInput.getText().toString().trim());
+        saveButton.setOnClickListener(v -> {
+            String category = categoryInput.getText().toString().trim();
+            double amount = Double.parseDouble(amountInput.getText().toString().trim());
 
-                Intent intent = new Intent();
-                intent.putExtra("category", category);
-                intent.putExtra("amount", amount);
-                setResult(RESULT_OK, intent);
-                finish();
-            }
+            Intent intent = new Intent();
+            intent.putExtra("category", category);
+            intent.putExtra("amount", amount);
+            setResult(RESULT_OK, intent);
+            finish();
         });
     }
 }

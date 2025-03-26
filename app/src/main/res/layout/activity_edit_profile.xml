@@ -5,6 +5,22 @@
               android:orientation="vertical"
               android:padding="16dp">
 
+    <ImageView
+            android:id="@+id/avatarImage"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/default_avatar"
+            android:scaleType="centerCrop"
+            android:background="@drawable/circle_border"
+            android:contentDescription="用户头像"/>
+
+    <Button
+            android:id="@+id/btnChangeAvatar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="更换头像"
+            android:layout_marginTop="8dp"/>
+
     <EditText
             android:id="@+id/usernameInput"
             android:layout_width="match_parent"
